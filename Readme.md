@@ -1,6 +1,6 @@
 # 🤖 Discord Bot
 
-A powerful and conversational Discord chatbot built using **Python** and the **Groq API**. This bot can answer your questions, chat naturally, and assist in a wide range of topics — all in your Discord server.
+A conversational Discord chatbot built using **Python** and the **Groq API**. This bot can answer your questions, chat naturally, and assist in a wide range of topics — all in your Discord server.
 
 ## 🚀 Features
 
