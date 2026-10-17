@@ -8,7 +8,7 @@ from pathlib import Path
 
 from careerbrain.bootstrap import open_brain
 from careerbrain.core.engine import Engine, EngineResult
-from careerbrain.core.llm import GroqProvider, LLMProvider
+from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.memory import Message
 from careerbrain.core.ratelimit import CooldownLimiter
 
@@ -50,7 +50,10 @@ def run(
             continue
         if text.lower() in EXIT_COMMANDS:
             return
-        write(_render(engine.handle(LOCAL_USER, text, CLI_MESSAGE_LIMIT)))
+        try:
+            write(_render(engine.handle(LOCAL_USER, text, CLI_MESSAGE_LIMIT)))
+        except LLMError as exc:
+            write(f"Language model error: {exc}")
 
 
 def _render(result: EngineResult) -> str:

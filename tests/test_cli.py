@@ -130,3 +130,20 @@ def test_main_reports_missing_brain(
     monkeypatch.delenv("CAREERBRAIN_ROOT", raising=False)
     assert main(["--offline", "--root", str(tmp_path / "missing")]) == 1
     assert "brain.config.yaml" in capsys.readouterr().err
+
+
+def test_run_reports_llm_errors_without_crashing(brain_root: Path) -> None:
+    from careerbrain.core.llm import LLMError
+
+    class FailingLLM:
+        def complete(self, messages):
+            raise LLMError("model unavailable")
+
+    engine = Engine(
+        retriever=open_brain(brain_root),
+        llm=FailingLLM(),
+        limiter=CooldownLimiter(10.0, clock=FakeClock()),
+    )
+    output: list[str] = []
+    run(engine, _scripted(["airflow", "/quit"]), output.append)
+    assert output == ["Language model error: model unavailable"]
