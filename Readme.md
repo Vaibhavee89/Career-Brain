@@ -33,10 +33,10 @@ cd DiscordBot
 
 ### 2. Install Dependencies
 
-We recommend using a virtual environment.
+This project uses [uv](https://docs.astral.sh/uv/) and pins Python 3.12 in `.python-version`. Install uv, then sync the dependencies from `pyproject.toml` and `uv.lock`:
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 3. Add Environment Variables
@@ -51,7 +51,7 @@ export GROQ_API_KEY=your_groq_api_key
 ### 4. Run the Bot
 
 ```bash
-python main.py
+uv run main.py
 ```
 
 ---
@@ -72,8 +72,9 @@ Bot: `Why don't scientists trust atoms? Because they make up everything!`
 DiscordBot/
 │
 ├── main.py              # Bot logic, Groq API calls, and commands
-├── requirements.txt     # Python dependencies
+├── .python-version      # Python version used by uv (3.12)
 ├── pyproject.toml       # Project metadata and dependencies
+├── uv.lock              # Locked dependency versions (uv)
 ├── .replit              # Replit run configuration
 └── Readme.md            # Project info
 ```
