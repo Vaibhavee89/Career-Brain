@@ -41,17 +41,17 @@ pip install -r requirements.txt
 
 ### 3. Add Environment Variables
 
-Create a `.env` file in the root directory and add your keys:
+The bot reads its keys from environment variables, so export them in your shell before running it:
 
-```env
-DISCORD_TOKEN=your_discord_bot_token
-GROQ_API_KEY=your_groq_api_key
+```bash
+export DISCORD_TOKEN=your_discord_bot_token
+export GROQ_API_KEY=your_groq_api_key
 ```
 
 ### 4. Run the Bot
 
 ```bash
-python bot.py
+python main.py
 ```
 
 ---
@@ -71,11 +71,11 @@ Bot: `Why don't scientists trust atoms? Because they make up everything!`
 ```
 groq-discord-bot/
 │
-├── bot.py               # Main bot logic
-├── groq_client.py       # Handles Groq API calls
-├── .env                 # Environment variables
+├── main.py              # Bot logic, Groq API calls, and commands
 ├── requirements.txt     # Python dependencies
-└── README.md            # Project info
+├── pyproject.toml       # Project metadata and dependencies
+├── .replit              # Replit run configuration
+└── Readme.md            # Project info
 ```
 
 ---
