@@ -59,17 +59,17 @@ trace back to anything.
 
 See `brain.config.yaml` for the live status of each phase.
 
-1. **Structure + seed pages** *(current)* — this commit: folders,
-   templates, and real content for the one project this repo already had
-   history for.
-2. **Ingest script + weekly PR workflow** — drop notes in `inbox/`, a
+1. ✅ **Structure + seed pages** — folders, templates, and real content for
+   the one project this repo already had history for.
+2. ✅ **Ingest script + weekly PR workflow** — drop notes in `inbox/`, a
    scheduled job reads it plus recent GitHub activity, updates the right
    pages, and opens a PR (never pushes directly) so nothing lands unreviewed.
-3. **MCP server** — 4 tools (`search_brain`, `get_page`, `get_resume`,
-   `recent_wins`) over this repo, backed by simple local embeddings, so any
-   AI tool can answer questions from it with citations.
-4. **Public site + `/ask-me` chat** — a generated, sanitized view built only
-   from `public: true` pages, for recruiters to query directly.
+3. ✅ **MCP server** — 4 tools (`search_brain`, `get_page`, `get_resume`,
+   `recent_wins`) over this repo, so any AI tool can answer questions from
+   it with citations.
+4. 🚧 **Public site + `/ask-me` chat** *(current)* — a generated, sanitized
+   view built only from `public: true` pages, for recruiters to query
+   directly. Site and chat are built; deployment is pending.
 
 ## 📜 License
 
