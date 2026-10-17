@@ -10,7 +10,7 @@ from careerbrain.core.retrieval import (
 
 
 def _page(title: str, public: str | None, body: str) -> str:
-    front = f"---\ntype: project\n"
+    front = "---\ntype: project\n"
     if public is not None:
         front += f"public: {public}\n"
     return f"{front}---\n\n# {title}\n\n{body}\n"
@@ -65,7 +65,9 @@ def test_get_public_page_rejects_paths_outside_root(brain: Path, rel_path: str) 
         get_public_page(brain, rel_path)
 
 
-def test_get_public_page_rejects_symlink_escaping_root(brain: Path, tmp_path: Path) -> None:
+def test_get_public_page_rejects_symlink_escaping_root(
+    brain: Path, tmp_path: Path
+) -> None:
     secret = tmp_path / "outside.md"
     secret.write_text(_page("Outside", "true", "leaked"))
     (brain / "projects/link.md").symlink_to(secret)

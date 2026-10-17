@@ -42,7 +42,7 @@ def parse_page(path: str, text: str) -> Page:
                     continue
                 value = value.split(" #", 1)[0].strip().strip("\"'")
                 frontmatter[key.strip()] = value
-            body = text[end + len("\n---"):].lstrip("\n")
+            body = text[end + len("\n---") :].lstrip("\n")
     return Page(path=path, frontmatter=frontmatter, body=body)
 
 
