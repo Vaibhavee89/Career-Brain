@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    image: careerbrain-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:?set GROQ_API_KEY in .env}
+      CAREERBRAIN_CORS_ORIGINS: ${CAREERBRAIN_CORS_ORIGINS:-}
+      CAREERBRAIN_TRUSTED_PROXIES: ${CAREERBRAIN_TRUSTED_PROXIES:-}
+      CAREERBRAIN_IP_RATE_MAX: ${CAREERBRAIN_IP_RATE_MAX:-30}
+      CAREERBRAIN_IP_RATE_WINDOW: ${CAREERBRAIN_IP_RATE_WINDOW:-60}
+    volumes:
+      - ${BRAIN_DATA_DIR:-../careerbrain-data}:/brain:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3

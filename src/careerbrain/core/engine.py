@@ -46,8 +46,17 @@ class Engine:
         self._reset_prefix = reset_prefix
         self._memories: dict[str, ConversationMemory] = {}
 
-    def handle(self, user_id: str, text: str, message_limit: int) -> EngineResult:
-        memory = self._memory_for(user_id)
+    def reset(self, conversation_key: str) -> None:
+        self._memory_for(conversation_key).reset()
+
+    def handle(
+        self,
+        user_id: str,
+        text: str,
+        message_limit: int,
+        conversation_key: str | None = None,
+    ) -> EngineResult:
+        memory = self._memory_for(conversation_key or user_id)
         if memory.is_reset_command(text):
             memory.reset()
             return EngineResult(kind="reset")
