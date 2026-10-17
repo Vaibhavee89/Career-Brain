@@ -1,33 +1,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from pathlib import Path
+
+from careerbrain.core.types import Page, PathTraversalError, SearchResult
 
 _SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__"}
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
-
-
-class PathTraversalError(ValueError):
-    pass
-
-
-@dataclass(frozen=True)
-class Page:
-    path: str
-    frontmatter: dict[str, str]
-    body: str
-
-    @property
-    def is_public(self) -> bool:
-        return self.frontmatter.get("public") == "true"
-
-
-@dataclass(frozen=True)
-class SearchResult:
-    page: Page
-    score: int
-    snippet: str
 
 
 def parse_page(path: str, text: str) -> Page:
