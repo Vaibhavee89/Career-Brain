@@ -1,0 +1,60 @@
+name: Public site
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: code
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Vaibhavee89/careerbrain-data
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+          path: data
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        working-directory: code
+        run: uv sync --no-dev
+
+      - name: Build site from public pages
+        working-directory: code
+        run: >
+          uv run python -m careerbrain.site
+          --root "$GITHUB_WORKSPACE/data"
+          --out "$RUNNER_TEMP/site"
+          --api-url "${{ vars.CAREERBRAIN_API_URL }}"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
