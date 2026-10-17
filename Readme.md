@@ -1,111 +1,76 @@
-# 🤖 Discord Bot
+# 🧠 Career Brain
 
-A conversational Discord chatbot built using **Python** and the **Groq API**. This bot can answer your questions, chat naturally, and assist in a wide range of topics — all in your Discord server.
+A personal knowledge repo: markdown pages that hold my career context — not
+just *what* I built, but *why* I made the calls I made. The idea (and the
+company-brain / personal-brain split) comes from
+[Slite's "What is a Company Brain?"](https://slite.com/learn/company-brain).
+A personal brain is the simpler, lower-stakes version: the knowledge is
+mine, and a wrong answer only costs me a bad answer.
 
-## 🚀 Features
+Eventually this becomes an LLM wiki wired to an MCP server, so any AI tool
+can query it (`search_brain`, `get_page`, `get_resume`, `recent_wins`) and
+answer things like "what's my strongest project with LLM integration?" with
+real citations. Right now it's phase 1: structure and seed content.
 
-- 🔍 Intelligent Q&A
-- 💬 Natural conversation flow
-- ⚙️ Built using Python & Discord.py
-- 🧠 Powered by the Groq LLM API
-- 🛡️ Easily extendable and customizable
+> This repo used to host a Discord bot. That code still exists in git
+> history (see [projects/discord-bot.md](projects/discord-bot.md)) — it's
+> now documented as the first real project in the brain instead of being
+> the thing the repo does.
 
-## 🛠️ Tech Stack
-
-- **Language**: Python 3.10+
-- **API**: [Groq API](https://groq.com/)
-- **Bot Framework**: [discord.py](https://github.com/Rapptz/discord.py)
-
-## 📸 Screenshots
-
-![Conversation Screenshot](Chatty.png)
-
----
-
-## 🔧 Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Vaibhavee89/DiscordBot.git
-cd DiscordBot
-````
-
-### 2. Install Dependencies
-
-This project uses [uv](https://docs.astral.sh/uv/) and pins Python 3.12 in `.python-version`. Install uv, then sync the dependencies from `pyproject.toml` and `uv.lock`:
-
-```bash
-uv sync
-```
-
-### 3. Add Environment Variables
-
-The bot reads its keys from environment variables, so export them in your shell before running it:
-
-```bash
-export DISCORD_TOKEN=your_discord_bot_token
-export GROQ_API_KEY=your_groq_api_key
-```
-
-### 4. Run the Bot
-
-```bash
-uv run main.py
-```
-
----
-
-## 🧠 Example Usage
-
-User: `@Chatty What's the capital of Japan?`
-Bot: `The capital of Japan is Tokyo.`
-
-User: `@Chatty Tell me a joke!`
-Bot: `Why don't scientists trust atoms? Because they make up everything!`
-
----
-
-## 📁 Project Structure
+## 📁 Structure
 
 ```
-DiscordBot/
-│
-├── main.py              # Bot logic, Groq API calls, and commands
-├── .python-version      # Python version used by uv (3.12)
-├── pyproject.toml       # Project metadata and dependencies
-├── uv.lock              # Locked dependency versions (uv)
-├── .replit              # Replit run configuration
-└── Readme.md            # Project info
+.
+├── profile/
+│   ├── about.md            # who I am, pitch, target roles
+│   ├── skills.md            # skills, each backed by evidence
+│   └── resume-variants/     # generated resume variants (later)
+├── projects/
+│   ├── discord-bot.md       # real project page, filled from this repo's history
+│   └── _template.md         # copy this for a new project
+├── decisions/
+│   ├── 2025-07-08-switch-openai-to-groq.md   # real decision log
+│   └── _template.md
+├── experience/
+│   └── _template.md         # public-safe summaries only — no employer internals
+├── learning/                # courses, notes, what stuck
+├── job-search/              # outreach, interview notes — private, not for publishing
+├── inbox/                   # raw dumps, processed later by the ingest script
+├── wins.md                  # dated one-line log of shipped things
+├── brain.config.yaml        # paths + visibility defaults + phase roadmap
+└── LICENSE
 ```
 
----
+## ✍️ Page conventions
 
-## 📌 Notes
+Every page has YAML frontmatter with at least `type`, `updated`, and
+`public` (`true`/`false`). **Nothing is public by default** — a page only
+gets published once it's been reviewed, and even then only the parts marked
+`public: true` ever leave this repo in a generated site, resume, or chat
+answer.
 
-* This bot supports both prefix-based and mention-based command triggers.
-* All responses are generated through Groq’s powerful LLM, offering accurate and fast responses.
+Project and decision pages follow the templates in `projects/_template.md`
+and `decisions/_template.md`. The one rule that matters most: **cite a
+source for any claim that isn't something you just reasoned through live**
+(a commit, a PR, a note). Don't let a page accumulate claims nobody can
+trace back to anything.
 
----
+## 🗺️ Roadmap
 
-## 🤝 Contributing
+See `brain.config.yaml` for the live status of each phase.
 
-Contributions are welcome!
-Please open an issue or PR to improve features or documentation.
-
----
+1. **Structure + seed pages** *(current)* — this commit: folders,
+   templates, and real content for the one project this repo already had
+   history for.
+2. **Ingest script + weekly PR workflow** — drop notes in `inbox/`, a
+   scheduled job reads it plus recent GitHub activity, updates the right
+   pages, and opens a PR (never pushes directly) so nothing lands unreviewed.
+3. **MCP server** — 4 tools (`search_brain`, `get_page`, `get_resume`,
+   `recent_wins`) over this repo, backed by simple local embeddings, so any
+   AI tool can answer questions from it with citations.
+4. **Public site + `/ask-me` chat** — a generated, sanitized view built only
+   from `public: true` pages, for recruiters to query directly.
 
 ## 📜 License
 
-MIT License. See `LICENSE` file for more details.
-
----
-
-## ❤️ Acknowledgments
-
-* [Groq](https://groq.com/)
-* [discord.py](https://github.com/Rapptz/discord.py)
-* Open-source inspiration from various community projects.
-
-
-
+MIT License. See [LICENSE](LICENSE).
