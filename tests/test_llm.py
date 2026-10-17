@@ -127,3 +127,55 @@ def test_unexpected_response_shape_raises() -> None:
 
     with pytest.raises(LLMError, match="unexpected"):
         provider.complete([Message("user", "x")])
+
+
+def test_invalid_retry_after_falls_back_to_exponential_backoff() -> None:
+    sleeps: list[float] = []
+    handler = _responses(
+        httpx.Response(429, headers={"retry-after": "soon"}),
+        httpx.Response(200, json=OK_BODY),
+    )
+    provider = _provider(handler, sleeps)
+
+    provider.complete([Message("user", "x")])
+    assert sleeps == [1.0]
+
+
+def test_retry_after_is_capped_at_max_delay() -> None:
+    sleeps: list[float] = []
+    handler = _responses(
+        httpx.Response(429, headers={"retry-after": "600"}),
+        httpx.Response(200, json=OK_BODY),
+    )
+    provider = _provider(handler, sleeps, max_delay=30.0)
+
+    provider.complete([Message("user", "x")])
+    assert sleeps == [30.0]
+
+
+def test_read_timeout_is_retried() -> None:
+    sleeps: list[float] = []
+    handler = _responses(
+        httpx.ReadTimeout("slow"),
+        httpx.Response(200, json=OK_BODY),
+    )
+    provider = _provider(handler, sleeps)
+
+    assert provider.complete([Message("user", "x")]) == "hi there"
+    assert sleeps == [1.0]
+
+
+def test_zero_retries_fails_on_first_retryable_status() -> None:
+    sleeps: list[float] = []
+    handler = _responses(httpx.Response(429))
+    provider = _provider(handler, sleeps, max_retries=0)
+
+    with pytest.raises(LLMError, match="429"):
+        provider.complete([Message("user", "x")])
+    assert sleeps == []
+
+
+def test_close_releases_client() -> None:
+    provider = _provider(_responses(httpx.Response(200, json=OK_BODY)), [])
+    provider.close()
+    assert provider._client.is_closed

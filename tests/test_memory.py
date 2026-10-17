@@ -1,6 +1,6 @@
 import pytest
 
-from careerbrain.core.memory import ConversationMemory, Message
+from careerbrain.core.memory import ConversationMemory, Message, estimate_tokens
 
 
 def _one_token(_: str) -> int:
@@ -55,3 +55,22 @@ def test_custom_reset_prefix() -> None:
 def test_rejects_non_positive_budget() -> None:
     with pytest.raises(ValueError):
         ConversationMemory(max_tokens=0)
+
+
+def test_default_estimate_is_about_four_chars_per_token() -> None:
+    assert estimate_tokens("") == 1
+    assert estimate_tokens("abcdefgh") == 2
+
+
+def test_default_counter_trims_by_characters() -> None:
+    memory = ConversationMemory(max_tokens=3)
+    memory.add_user("x" * 8)
+    memory.add_assistant("y" * 8)
+    memory.add_user("z" * 4)
+    assert memory.messages() == [Message("user", "z" * 4)]
+
+
+def test_oversized_message_is_dropped() -> None:
+    memory = ConversationMemory(max_tokens=2, count_tokens=lambda text: len(text))
+    memory.add_user("way too long for the budget")
+    assert memory.messages() == []

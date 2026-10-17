@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-Role = Literal["user", "assistant"]
+Role = Literal["system", "user", "assistant"]
 TokenCounter = Callable[[str], int]
 
 DEFAULT_RESET_PREFIX = "/reset"
