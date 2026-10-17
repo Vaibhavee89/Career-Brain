@@ -27,8 +27,8 @@ A conversational Discord chatbot built using **Python** and the **Groq API**. Th
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/groq-discord-bot.git
-cd groq-discord-bot
+git clone https://github.com/Vaibhavee89/DiscordBot.git
+cd DiscordBot
 ````
 
 ### 2. Install Dependencies
@@ -69,7 +69,7 @@ Bot: `Why don't scientists trust atoms? Because they make up everything!`
 ## 📁 Project Structure
 
 ```
-groq-discord-bot/
+DiscordBot/
 │
 ├── main.py              # Bot logic, Groq API calls, and commands
 ├── requirements.txt     # Python dependencies
