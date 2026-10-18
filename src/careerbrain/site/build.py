@@ -11,11 +11,11 @@ from pathlib import Path
 import markdown
 
 from careerbrain.core.retrieval import load_pages
-from careerbrain.core.types import Page
+from careerbrain.core.types import PAGES_URL_DIR, Page, page_slug
 from careerbrain.ingest.generate import build_profile_readme
 
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
-PAGES_DIR = "pages"
+PAGES_DIR = PAGES_URL_DIR
 CSS = """
 :root { color-scheme: light dark; --fg: #1d1d1f; --bg: #fff; --muted: #6e6e73; --accent: #0b57d0; --line: #d2d2d7; }
 @media (prefers-color-scheme: dark) {
@@ -179,8 +179,7 @@ def _write(path: Path, text: str) -> str:
     return path.name
 
 
-def _slug(path: str) -> str:
-    return path.removesuffix(".md").replace("/", "--")
+_slug = page_slug
 
 
 def _without_title(body: str) -> str:

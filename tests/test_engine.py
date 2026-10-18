@@ -40,8 +40,11 @@ class FakeClock:
         return self.now
 
 
-def _page(path: str, body: str) -> SearchResult:
-    page = Page(path=path, frontmatter={"public": "true"}, body=body)
+def _page(
+    path: str, body: str, frontmatter: dict[str, str] | None = None
+) -> SearchResult:
+    fm = {"public": "true", **(frontmatter or {})}
+    page = Page(path=path, frontmatter=fm, body=body)
     return SearchResult(page=page, score=1, snippet=body)
 
 
@@ -51,6 +54,7 @@ def _engine(
     clock: FakeClock | None = None,
     cooldown: float = 10.0,
     memory_max_tokens: int = 2000,
+    site_base_url: str | None = None,
 ) -> tuple[Engine, FakeRetriever, FakeClock]:
     retriever = retriever or FakeRetriever(
         [_page("projects/etl.md", "built an ETL agent")]
@@ -61,6 +65,7 @@ def _engine(
         llm=llm,
         limiter=CooldownLimiter(cooldown, clock=clock),
         memory_max_tokens=memory_max_tokens,
+        site_base_url=site_base_url,
     )
     return engine, retriever, clock
 
@@ -180,3 +185,92 @@ def test_trimmed_history_never_starts_with_assistant_turn() -> None:
 
     history = [(m.role, m.content) for m in llm.calls[2][1:-1]]
     assert history == [("user", "question 1"), ("assistant", "b" * 40)]
+
+
+def test_context_includes_github_link_from_project_frontmatter() -> None:
+    llm = FakeLLM(["reply"])
+    hit = _page(
+        "projects/etl.md",
+        "An ETL agent.",
+        frontmatter={"links": "[https://github.com/me/etl-agent]"},
+    )
+    engine, _, _ = _engine(llm, retriever=FakeRetriever([hit]))
+
+    engine.handle("alice", "tell me about the etl project", message_limit=2000)
+
+    system = llm.calls[0][0]
+    assert "GitHub: https://github.com/me/etl-agent" in system.content
+
+
+def test_context_includes_page_link_when_site_url_configured() -> None:
+    llm = FakeLLM(["reply"])
+    hit = _page("projects/etl.md", "An ETL agent.")
+    engine, _, _ = _engine(
+        llm,
+        retriever=FakeRetriever([hit]),
+        site_base_url="https://vaibhavee89.github.io/Career-Brain/",
+    )
+
+    engine.handle("alice", "tell me about the etl project", message_limit=2000)
+
+    system = llm.calls[0][0]
+    assert (
+        "Page link: https://vaibhavee89.github.io/Career-Brain/pages/projects--etl.html"
+        in system.content
+    )
+
+
+def test_no_page_link_when_site_url_not_configured() -> None:
+    llm = FakeLLM(["reply"])
+    hit = _page("projects/etl.md", "An ETL agent.")
+    engine, _, _ = _engine(llm, retriever=FakeRetriever([hit]))
+
+    engine.handle("alice", "tell me about the etl project", message_limit=2000)
+
+    assert "Page link:" not in llm.calls[0][0].content
+
+
+def test_resume_keyword_pulls_in_resume_page_even_if_not_top_matched() -> None:
+    llm = FakeLLM(["reply"])
+    etl_hit = _page("projects/etl.md", "An ETL agent.")
+    resume_hit = _page("profile/resume-variants/eng.md", "Resume content.")
+
+    class RoutingRetriever(FakeRetriever):
+        def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+            self.queries.append(query)
+            if query == "resume cv":
+                return [resume_hit][:limit]
+            return [etl_hit][:limit]
+
+    engine, retriever, _ = _engine(llm, retriever=RoutingRetriever())
+
+    engine.handle("alice", "can I get your resume?", message_limit=2000)
+
+    system = llm.calls[0][0]
+    assert "profile/resume-variants/eng.md" in system.content
+    assert "resume cv" in retriever.queries
+
+
+def test_no_extra_search_when_message_has_no_resume_keywords() -> None:
+    llm = FakeLLM(["reply"])
+    engine, retriever, _ = _engine(llm)
+
+    engine.handle("alice", "what did you build?", message_limit=2000)
+
+    assert retriever.queries == ["what did you build?"]
+
+
+def test_resume_hit_not_duplicated_when_already_in_top_results() -> None:
+    llm = FakeLLM(["reply"])
+    resume_hit = _page("profile/resume-variants/eng.md", "Resume content.")
+
+    class RoutingRetriever(FakeRetriever):
+        def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+            self.queries.append(query)
+            return [resume_hit][:limit]
+
+    engine, _, _ = _engine(llm, retriever=RoutingRetriever())
+
+    result = engine.handle("alice", "send me your resume", message_limit=2000)
+
+    assert result.sources == ["profile/resume-variants/eng.md"]

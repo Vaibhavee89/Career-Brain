@@ -21,6 +21,7 @@ from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter, WindowLimiter
 
 API_KEY_ENV = "GROQ_API_KEY"
+SITE_URL_ENV = "CAREERBRAIN_SITE_URL"
 CORS_ORIGINS_ENV = "CAREERBRAIN_CORS_ORIGINS"
 TRUSTED_PROXIES_ENV = "CAREERBRAIN_TRUSTED_PROXIES"
 IP_RATE_MAX_ENV = "CAREERBRAIN_IP_RATE_MAX"
@@ -155,6 +156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         retriever=brain,
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
+        site_base_url=os.environ.get(SITE_URL_ENV),
     )
     app = build_app(
         engine,
