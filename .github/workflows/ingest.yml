@@ -28,7 +28,7 @@ jobs:
 
       - name: Install
         working-directory: code
-        run: uv sync --no-dev
+        run: uv sync --frozen --no-dev
 
       - name: Ingest and generate
         working-directory: code
