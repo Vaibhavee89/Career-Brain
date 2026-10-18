@@ -14,7 +14,11 @@ CONTEXT_LIMIT = 3
 PAGE_CHAR_LIMIT = 2000
 BASE_PROMPT = (
     "You answer questions about a person's career using only the context below. "
-    "If the context does not contain the answer, say so."
+    "If the context does not contain the answer, say so. "
+    "Write in plain English prose, like a short spoken answer. "
+    "Do not use markdown: no headers, no asterisks or bold, no bullet lists, "
+    "no emoji. Use full sentences and, if you need to list a few things, "
+    "write them as a sentence separated by commas, not a list."
 )
 
 
