@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: careerbrain-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CAREERBRAIN_DATA_TOKEN
+        sync: false # fine-grained token, read-only on careerbrain-data
+      - key: CAREERBRAIN_DATA_REPO
+        value: Vaibhavee89/careerbrain-data
+      - key: CAREERBRAIN_CORS_ORIGINS
+        sync: false # your GitHub Pages origin, e.g. https://<user>.github.io
+      - key: CAREERBRAIN_TRUSTED_PROXIES
+        sync: false # Render's proxy range, so rate limits see real client IPs
