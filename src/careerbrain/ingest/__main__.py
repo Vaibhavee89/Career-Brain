@@ -14,7 +14,10 @@ from careerbrain.core.retrieval import load_pages
 from careerbrain.ingest.generate import generate_outputs
 from careerbrain.ingest.github_activity import (
     append_wins,
-    fetch_public_events,
+    direct_commit_lines,
+    fetch_commits,
+    fetch_landed,
+    fetch_merged_prs,
     merged_pr_lines,
 )
 from careerbrain.ingest.inbox import process_inbox
@@ -42,13 +45,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.github_user:
             print("Set GITHUB_USER or pass --github-user.", file=sys.stderr)
             return 1
-        with httpx.Client(timeout=30.0) as client:
-            events = fetch_public_events(
-                args.github_user, os.environ.get("GITHUB_TOKEN"), client
-            )
         since = today - dt.timedelta(days=WINDOW_DAYS)
-        added = append_wins(root, merged_pr_lines(events, since))
-        summary.append(f"- GitHub: {added} new merged PR(s) added to wins.md.")
+        token = os.environ.get("GITHUB_TOKEN")
+        with httpx.Client(timeout=30.0) as client:
+            merged = fetch_merged_prs(args.github_user, since, token, client)
+            commits = fetch_commits(args.github_user, since, token, client)
+            landed = fetch_landed(merged, args.github_user, token, client)
+        lines = merged_pr_lines(merged, since) + direct_commit_lines(
+            commits, since, landed
+        )
+        added = append_wins(root, lines)
+        summary.append(f"- GitHub: {added} new win(s) added to wins.md.")
         print(f"github: {added} new win(s)")
 
     if not args.skip_inbox:

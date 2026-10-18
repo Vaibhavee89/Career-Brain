@@ -17,7 +17,10 @@ from careerbrain.ingest.generate import (
 )
 from careerbrain.ingest.github_activity import (
     append_wins,
-    fetch_public_events,
+    direct_commit_lines,
+    fetch_commits,
+    fetch_landed,
+    fetch_merged_prs,
     merged_pr_lines,
 )
 from careerbrain.ingest.inbox import (
@@ -119,30 +122,23 @@ class FakeLLM:
         return item
 
 
-def _pr_event(merged_at: str | None, action: str = "closed", number: int = 7) -> dict:
+def _pr_item(closed_at: str, number: int = 7) -> dict:
     return {
-        "type": "PullRequestEvent",
-        "repo": {"name": "owner/repo"},
-        "payload": {
-            "action": action,
-            "pull_request": {
-                "number": number,
-                "title": "Add cache",
-                "html_url": f"https://github.com/owner/repo/pull/{number}",
-                "merged_at": merged_at,
-            },
-        },
+        "number": number,
+        "title": "Add cache",
+        "html_url": f"https://github.com/owner/repo/pull/{number}",
+        "repository_url": "https://api.github.com/repos/owner/repo",
+        "closed_at": closed_at,
+        "pull_request": {"merged_at": closed_at},
     }
 
 
 def test_merged_prs_in_window_become_cited_win_lines() -> None:
-    events = [
-        _pr_event("2026-10-18T10:00:00Z"),
-        _pr_event(None, action="closed"),
-        _pr_event("2026-10-01T10:00:00Z", number=8),
-        {"type": "PushEvent", "repo": {"name": "owner/repo"}, "payload": {}},
+    items = [
+        _pr_item("2026-10-18T10:00:00Z"),
+        _pr_item("2026-10-01T10:00:00Z", number=8),
     ]
-    lines = merged_pr_lines(events, since=dt.date(2026, 10, 12))
+    lines = merged_pr_lines(items, since=dt.date(2026, 10, 12))
     expected = (
         "- 2026-10-18 — Merged PR #7 in owner/repo: Add cache "
         "(source: https://github.com/owner/repo/pull/7)"
@@ -150,26 +146,126 @@ def test_merged_prs_in_window_become_cited_win_lines() -> None:
     assert lines == [expected]
 
 
-def test_fetch_sends_token_and_returns_events() -> None:
+def test_fetch_searches_merged_prs_with_token() -> None:
     seen: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["auth"] = request.headers.get("authorization", "")
-        return httpx.Response(200, json=[{"type": "PushEvent"}])
+        seen["q"] = request.url.params.get("q", "")
+        return httpx.Response(200, json={"items": [_pr_item("2026-10-18T10:00:00Z")]})
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        events = fetch_public_events("someone", "tok", client)
-    assert events == [{"type": "PushEvent"}]
+        items = fetch_merged_prs("someone", dt.date(2026, 10, 12), "tok", client)
+    assert len(items) == 1
     assert seen["auth"] == "Bearer tok"
+    assert seen["q"] == "author:someone is:pr is:merged merged:>=2026-10-12"
 
 
 def test_append_wins_is_idempotent(brain: Path) -> None:
     lines = merged_pr_lines(
-        [_pr_event("2026-10-18T10:00:00Z")], since=dt.date(2026, 10, 1)
+        [_pr_item("2026-10-18T10:00:00Z")], since=dt.date(2026, 10, 1)
     )
     assert append_wins(brain, lines) == 1
     assert append_wins(brain, lines) == 0
     assert (brain / "wins.md").read_text().count("Merged PR #7") == 1
+
+
+def _commit_item(sha: str, message: str, repo: str = "me/app", day: str = "2026-10-18"):
+    return {
+        "sha": sha,
+        "html_url": f"https://github.com/{repo}/commit/{sha}",
+        "commit": {
+            "message": message,
+            "committer": {"date": f"{day}T10:00:00Z"},
+        },
+        "repository": {"full_name": repo},
+    }
+
+
+def _github_router(
+    pr_numbers_to_commits: dict[int, list[dict]],
+    merge_shas: dict[int, str],
+    titles: dict[int, str],
+):
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/commits"):
+            number = int(path.split("/pulls/")[1].split("/")[0])
+            return httpx.Response(200, json=pr_numbers_to_commits[number])
+        if "/pulls/" in path:
+            number = int(path.rsplit("/", 1)[1])
+            return httpx.Response(
+                200,
+                json={
+                    "merge_commit_sha": merge_shas[number],
+                    "title": titles[number],
+                },
+            )
+        raise AssertionError(f"unexpected request {path}")
+
+    return handler
+
+
+def test_commit_search_is_scoped_to_user_owned_repos() -> None:
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["q"] = request.url.params.get("q", "")
+        return httpx.Response(200, json={"items": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        fetch_commits("me", dt.date(2026, 10, 12), None, client)
+    assert seen["q"] == "author:me user:me committer-date:>=2026-10-12"
+
+
+def test_direct_commits_drop_squash_rebase_and_merge_duplicates() -> None:
+    pr_item = {
+        "number": 7,
+        "title": "Add cache",
+        "html_url": "https://github.com/me/app/pull/7",
+        "repository_url": "https://api.github.com/repos/me/app",
+        "closed_at": "2026-10-18T10:00:00Z",
+    }
+    handler = _github_router(
+        pr_numbers_to_commits={
+            7: [
+                # rebase-merged: same subject, but a new SHA on main
+                {"sha": "aaa111", "commit": {"message": "Wire up LRU cache\n\nbody"}},
+            ]
+        },
+        merge_shas={7: "bbb222"},
+        titles={7: "Add cache"},
+    )
+    commits = [
+        _commit_item("bbb222", "Add cache (#7)"),  # squash merge commit
+        _commit_item("ccc333", "Wire up LRU cache"),  # rebased copy of PR commit
+        _commit_item("ddd444", "Fix typo in README"),  # genuinely direct
+    ]
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        landed = fetch_landed([pr_item], "me", None, client)
+    lines = direct_commit_lines(commits, dt.date(2026, 10, 12), landed)
+    expected = (
+        "- 2026-10-18 — Direct commit ddd444 in me/app: Fix typo in README "
+        "(source: https://github.com/me/app/commit/ddd444)"
+    )
+    assert lines == [expected]
+
+
+def test_prs_in_other_owners_repos_are_not_used_for_dedupe() -> None:
+    pr_item = {
+        "number": 3,
+        "title": "Their change",
+        "html_url": "https://github.com/other/lib/pull/3",
+        "repository_url": "https://api.github.com/repos/other/lib",
+        "closed_at": "2026-10-18T10:00:00Z",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("should not call the API for other owners' PRs")
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        landed = fetch_landed([pr_item], "me", None, client)
+    assert landed.shas == set() and landed.subjects == set()
 
 
 def test_parse_claims_accepts_fenced_json_and_rejects_garbage() -> None:
