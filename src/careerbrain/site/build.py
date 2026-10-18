@@ -156,7 +156,9 @@ def build_site(root: Path, out: Path, api_url: str | None = None) -> list[str]:
         )
         written.append(target.relative_to(out).as_posix())
 
-    config = json.dumps({"apiUrl": api_url}).replace("</", "<\\/")
+    config = json.dumps({"apiUrl": api_url.rstrip("/") if api_url else None}).replace(
+        "</", "<\\/"
+    )
     script = f"<script>window.CAREERBRAIN = {config};</script>\n{CHAT_SCRIPT}"
     written.append(_write(out / "ask-me.html", _layout("Ask me", "", ASK_BODY, script)))
     return written
