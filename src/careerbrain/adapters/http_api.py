@@ -15,10 +15,12 @@ from pydantic import BaseModel, Field
 
 from careerbrain.adapters.cli import OfflineLLM
 from careerbrain.adapters.client_ip import Network, parse_networks, resolve_client_ip
-from careerbrain.bootstrap import open_brain
+from careerbrain.bootstrap import Brain, open_brain
 from careerbrain.core.engine import Engine
 from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter, WindowLimiter
+from careerbrain.core.types import page_links, page_slug, page_title
+from careerbrain.site.build import render_markdown, without_title
 
 API_KEY_ENV = "GROQ_API_KEY"
 SITE_URL_ENV = "CAREERBRAIN_SITE_URL"
@@ -47,6 +49,7 @@ class ResetRequest(BaseModel):
 def build_app(
     engine: Engine,
     *,
+    brain: Brain | None = None,
     cors_origins: Sequence[str] = (),
     trusted_proxies: Sequence[Network] = (),
     ip_limiter: WindowLimiter | None = None,
@@ -115,6 +118,37 @@ def build_app(
         engine.reset(body.user_id)
         return {"kind": "reset"}
 
+    if brain is not None:
+
+        @app.get("/pages")
+        def list_pages() -> list[dict[str, str]]:
+            return [
+                {
+                    "path": page.path,
+                    "slug": page_slug(page.path),
+                    "title": page_title(page),
+                    "type": page.frontmatter.get("type", ""),
+                }
+                for page in brain.list_public_pages()
+            ]
+
+        @app.get("/pages/{slug}")
+        def get_page(slug: str) -> JSONResponse:
+            for page in brain.list_public_pages():
+                if page_slug(page.path) != slug:
+                    continue
+                return JSONResponse(
+                    content={
+                        "path": page.path,
+                        "slug": slug,
+                        "title": page_title(page),
+                        "type": page.frontmatter.get("type", ""),
+                        "links": page_links(page.frontmatter),
+                        "html": render_markdown(without_title(page.body)),
+                    }
+                )
+            return JSONResponse(status_code=404, content={"detail": "page not found"})
+
     return app
 
 
@@ -160,6 +194,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     app = build_app(
         engine,
+        brain=brain,
         cors_origins=_env_list(CORS_ORIGINS_ENV),
         trusted_proxies=parse_networks(_env_list(TRUSTED_PROXIES_ENV)),
         ip_limiter=WindowLimiter(

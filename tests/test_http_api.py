@@ -1,9 +1,12 @@
 from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from careerbrain.adapters.http_api import build_app
+from careerbrain.bootstrap import Brain
+from careerbrain.config import BrainConfig
 from careerbrain.core.engine import Engine
 from careerbrain.core.llm import LLMError
 from careerbrain.core.memory import Message
@@ -118,3 +121,70 @@ def test_ask_maps_llm_failure_to_502_without_leaking_details() -> None:
 def test_reset_rejects_missing_user_id() -> None:
     client, _ = _client(FakeLLM([]))
     assert client.post("/reset", json={}).status_code == 422
+
+
+def test_pages_routes_absent_without_a_brain() -> None:
+    client, _ = _client(FakeLLM([]))
+    assert client.get("/pages").status_code == 404
+
+
+def _write(root: Path, rel: str, text: str) -> None:
+    target = root / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+
+
+@pytest.fixture
+def brain(tmp_path: Path) -> Brain:
+    _write(
+        tmp_path,
+        "projects/etl.md",
+        "---\ntype: project\npublic: true\nlinks: [https://github.com/me/etl]\n---\n\n"
+        "# ETL Helper\n\nAn agent for DAG failures.\n",
+    )
+    _write(
+        tmp_path,
+        "projects/secret.md",
+        "---\ntype: project\npublic: false\n---\n\n# Secret\n",
+    )
+    return Brain(BrainConfig(root=tmp_path))
+
+
+def _client_with_brain(llm: FakeLLM, brain: Brain) -> TestClient:
+    engine = Engine(
+        retriever=FakeRetriever(),
+        llm=llm,
+        limiter=CooldownLimiter(10.0),
+    )
+    return TestClient(build_app(engine, brain=brain))
+
+
+def test_list_pages_returns_only_public_pages(brain: Brain) -> None:
+    client = _client_with_brain(FakeLLM([]), brain)
+    response = client.get("/pages")
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "path": "projects/etl.md",
+            "slug": "projects--etl",
+            "title": "ETL Helper",
+            "type": "project",
+        }
+    ]
+
+
+def test_get_page_by_slug_returns_rendered_html_and_links(brain: Brain) -> None:
+    client = _client_with_brain(FakeLLM([]), brain)
+    response = client.get("/pages/projects--etl")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "ETL Helper"
+    assert body["links"] == ["https://github.com/me/etl"]
+    assert "<p>An agent for DAG failures.</p>" in body["html"]
+    assert "<h1>" not in body["html"]
+
+
+def test_get_page_by_slug_404s_for_private_or_unknown_slug(brain: Brain) -> None:
+    client = _client_with_brain(FakeLLM([]), brain)
+    assert client.get("/pages/projects--secret").status_code == 404
+    assert client.get("/pages/does-not-exist").status_code == 404

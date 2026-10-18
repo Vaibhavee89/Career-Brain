@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from careerbrain.config import CONFIG_FILENAME, BrainConfig, load_config
-from careerbrain.core.retrieval import get_public_page, search_public
+from careerbrain.core.retrieval import get_public_page, load_pages, search_public
 from careerbrain.core.types import Page, SearchResult
 
 ROOT_ENV_VAR = "CAREERBRAIN_ROOT"
@@ -19,6 +19,9 @@ class Brain:
 
     def get_page(self, rel_path: str) -> Page | None:
         return get_public_page(self.config.root, rel_path)
+
+    def list_public_pages(self) -> list[Page]:
+        return [page for page in load_pages(self.config.root) if page.is_public]
 
 
 def find_root(start: Path | None = None) -> Path:

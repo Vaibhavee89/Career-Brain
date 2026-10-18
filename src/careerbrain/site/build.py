@@ -11,7 +11,7 @@ from pathlib import Path
 import markdown
 
 from careerbrain.core.retrieval import load_pages
-from careerbrain.core.types import PAGES_URL_DIR, Page, page_slug
+from careerbrain.core.types import PAGES_URL_DIR, Page, page_slug, page_title
 from careerbrain.ingest.generate import build_profile_readme
 
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
@@ -309,9 +309,11 @@ def _write(path: Path, text: str) -> str:
 
 
 _slug = page_slug
+_title = page_title
 
 
-def _without_title(body: str) -> str:
+def without_title(body: str) -> str:
+    """A page's body with its leading `# ` heading line removed."""
     lines = body.split("\n")
     for index, line in enumerate(lines):
         if line.startswith("# "):
@@ -319,11 +321,7 @@ def _without_title(body: str) -> str:
     return body
 
 
-def _title(page: Page) -> str:
-    for line in page.body.splitlines():
-        if line.startswith("# "):
-            return line[2:].strip()
-    return page.path.rsplit("/", 1)[-1].removesuffix(".md").replace("-", " ").title()
+_without_title = without_title
 
 
 def main(argv: Sequence[str] | None = None) -> int:

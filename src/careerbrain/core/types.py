@@ -43,3 +43,12 @@ def page_url(base_url: str, path: str) -> str:
 def page_links(frontmatter: dict[str, str]) -> list[str]:
     """URLs listed in a page's `links` frontmatter, e.g. repo or demo links."""
     return _URL_RE.findall(frontmatter.get("links", ""))
+
+
+def page_title(page: Page) -> str:
+    """A page's display title: its first `# ` heading, or a title-cased
+    fallback built from its file name."""
+    for line in page.body.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return page.path.rsplit("/", 1)[-1].removesuffix(".md").replace("-", " ").title()
