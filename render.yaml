@@ -16,7 +16,7 @@ services:
       - key: CAREERBRAIN_DATA_REPO
         value: Vaibhavee89/careerbrain-data
       - key: CAREERBRAIN_CORS_ORIGINS
-        sync: false # your GitHub Pages origin, e.g. https://<user>.github.io
+        value: https://vaibhavee89.github.io,https://career-brain-ui.vercel.app
       - key: CAREERBRAIN_TRUSTED_PROXIES
         sync: false # Render's proxy range, so rate limits see real client IPs
       - key: CAREERBRAIN_SITE_URL
