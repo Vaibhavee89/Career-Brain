@@ -22,10 +22,10 @@ CATEGORIES = (
     ("decision", "decisions", "Decisions"),
 )
 SUGGESTED_QUESTIONS = (
-    "What's your strongest project?",
-    "Tell me about your experience.",
-    "Can I get your resume?",
-    "What are your skills?",
+    "What's Vaibhavee's strongest project?",
+    "Tell me about Vaibhavee's experience.",
+    "Can I get Vaibhavee's resume?",
+    "What are Vaibhavee's skills?",
 )
 CSS = """
 :root { color-scheme: light dark; --fg: #1d1d1f; --bg: #fff; --muted: #6e6e73; --accent: #0b57d0; --line: #d2d2d7; --card: #f5f5f7; --ok: #1a7f37; --bad: #c0392b; }
