@@ -24,6 +24,7 @@ from careerbrain.site.build import render_markdown, without_title
 
 API_KEY_ENV = "GROQ_API_KEY"
 SITE_URL_ENV = "CAREERBRAIN_SITE_URL"
+RESUME_URL_ENV = "CAREERBRAIN_RESUME_URL"
 CORS_ORIGINS_ENV = "CAREERBRAIN_CORS_ORIGINS"
 TRUSTED_PROXIES_ENV = "CAREERBRAIN_TRUSTED_PROXIES"
 IP_RATE_MAX_ENV = "CAREERBRAIN_IP_RATE_MAX"
@@ -191,6 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),
+        resume_url=os.environ.get(RESUME_URL_ENV),
     )
     app = build_app(
         engine,

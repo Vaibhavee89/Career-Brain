@@ -18,6 +18,7 @@ from careerbrain.core.splitter import split_message
 
 API_KEY_ENV = "GROQ_API_KEY"
 SITE_URL_ENV = "CAREERBRAIN_SITE_URL"
+RESUME_URL_ENV = "CAREERBRAIN_RESUME_URL"
 COOLDOWN_SECONDS = 1.0
 DISCORD_MESSAGE_LIMIT = 2_000
 SLACK_MESSAGE_LIMIT = 40_000
@@ -156,4 +157,5 @@ def build_engine(root: Path | None, offline: bool) -> Engine:
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),
+        resume_url=os.environ.get(RESUME_URL_ENV),
     )

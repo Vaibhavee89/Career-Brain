@@ -19,5 +19,7 @@ services:
         value: https://vaibhavee89.github.io,https://career-brain-ui.vercel.app
       - key: CAREERBRAIN_TRUSTED_PROXIES
         sync: false # Render's proxy range, so rate limits see real client IPs
+      - key: CAREERBRAIN_RESUME_URL
+        value: https://drive.google.com/file/d/1IzXQ3ka1ka4yWiVyvfJUAgdh8WJnj6tk/view?usp=sharing # downloadable CV the chat shares
       - key: CAREERBRAIN_SITE_URL
         value: https://vaibhavee89.github.io/Career-Brain # used to build page links in replies

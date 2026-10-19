@@ -274,3 +274,27 @@ def test_resume_hit_not_duplicated_when_already_in_top_results() -> None:
     result = engine.handle("alice", "send me your resume", message_limit=2000)
 
     assert result.sources == ["profile/resume-variants/eng.md"]
+
+
+def test_resume_hit_shares_download_link_not_page_link() -> None:
+    llm = FakeLLM(["reply"])
+    resume_hit = _page("profile/resume-variants/eng.md", "Resume content.")
+
+    class RoutingRetriever(FakeRetriever):
+        def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+            self.queries.append(query)
+            return [resume_hit][:limit]
+
+    engine = Engine(
+        retriever=RoutingRetriever(),
+        llm=llm,
+        limiter=CooldownLimiter(10.0),
+        site_base_url="https://vaibhavee89.github.io/Career-Brain",
+        resume_url="https://drive.google.com/file/d/abc/view",
+    )
+
+    engine.handle("alice", "can I get your resume?", message_limit=2000)
+
+    system = llm.calls[0][0].content
+    assert "Resume download link: https://drive.google.com/file/d/abc/view" in system
+    assert "Page link:" not in system
