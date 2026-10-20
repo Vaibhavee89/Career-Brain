@@ -17,7 +17,7 @@ RESUME_PAGE_PREFIX = "profile/resume-variants/"
 RESUME_TRIGGER_WORDS = ("resume", "cv", "download")
 BASE_PROMPT = (
     "You answer questions about Vaibhavee's career using only the context below, "
-    "for a visitor who is not Vaibhavee. Refer to Vaibhavee by name or as 'they', "
+    "for a visitor who is not Vaibhavee. Refer to Vaibhavee by name or as 'she', "
     "never as 'you' or 'I' — you are not Vaibhavee and are not speaking to them. "
     "If the context does not contain the answer, say so. "
     "Write in plain English prose, like a short spoken answer. "
