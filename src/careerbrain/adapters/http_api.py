@@ -19,6 +19,7 @@ from careerbrain.bootstrap import Brain, open_brain
 from careerbrain.core.engine import Engine
 from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter, WindowLimiter
+from careerbrain.core.semantic import SemanticRetriever
 from careerbrain.core.types import page_links, page_slug, page_title
 from careerbrain.site.build import render_markdown, without_title
 
@@ -188,7 +189,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     engine = Engine(
-        retriever=brain,
+        retriever=SemanticRetriever(brain, llm),
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),
