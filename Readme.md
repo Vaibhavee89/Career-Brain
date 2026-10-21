@@ -12,10 +12,9 @@ can query it (`search_brain`, `get_page`, `get_resume`, `recent_wins`) and
 answer things like "what's my strongest project with LLM integration?" with
 real citations. Right now it's phase 1: structure and seed content.
 
-> This repo used to host a Discord bot. That code still exists in git
-> history (see [projects/discord-bot.md](projects/discord-bot.md)) — it's
-> now documented as the first real project in the brain instead of being
-> the thing the repo does.
+> This repo started as a Discord bot. It was renamed to Career Brain on
+> 2026-10-17. The original code is in git history, and the Discord platform
+> support lives on as an adapter in `src/careerbrain/adapters/discord_bot.py`.
 
 ## 📁 Structure
 
@@ -26,7 +25,7 @@ real citations. Right now it's phase 1: structure and seed content.
 │   ├── skills.md            # skills, each backed by evidence
 │   └── resume-variants/     # generated resume variants (later)
 ├── projects/
-│   ├── discord-bot.md       # real project page, filled from this repo's history
+│   ├── career-brain.md      # real project page, filled from this repo's history
 │   └── _template.md         # copy this for a new project
 ├── decisions/
 │   ├── 2025-07-08-switch-openai-to-groq.md   # real decision log
