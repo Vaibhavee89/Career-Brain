@@ -21,6 +21,7 @@ from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter, WindowLimiter
 from careerbrain.core.semantic import SemanticRetriever
 from careerbrain.core.types import page_links, page_slug, page_title
+from careerbrain.core.vector import sync_vectors
 from careerbrain.site.build import render_markdown, without_title
 
 API_KEY_ENV = "GROQ_API_KEY"
@@ -188,8 +189,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(exc, file=sys.stderr)
         return 1
 
+    vectors = sync_vectors(brain)
     engine = Engine(
-        retriever=SemanticRetriever(brain, llm),
+        retriever=SemanticRetriever(brain, llm, vectors=vectors),
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),

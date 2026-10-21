@@ -5,9 +5,12 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
+import httpx
+
 from careerbrain.core.llm import LLMError, LLMProvider
 from careerbrain.core.memory import Message
 from careerbrain.core.types import Page, SearchResult, page_title
+from careerbrain.core.vector import PineconeIndex
 
 SUMMARY_CHARS = 400
 ARRAY = re.compile(r"\[.*\]", re.DOTALL)
@@ -34,14 +37,24 @@ class SemanticRetriever:
     it returns that isn't a public page is ignored.
     """
 
-    def __init__(self, source: PageSource, llm: LLMProvider) -> None:
+    def __init__(
+        self,
+        source: PageSource,
+        llm: LLMProvider,
+        vectors: PineconeIndex | None = None,
+    ) -> None:
         self._source = source
         self._llm = llm
+        self._vectors = vectors
 
     def search(self, query: str, limit: int = 5) -> list[SearchResult]:
         pages = self._source.list_public_pages()
         if not pages:
             return []
+        if self._vectors is not None:
+            found = self._search_vectors(query, limit, pages)
+            if found is not None:
+                return found
         try:
             reply = self._llm.complete(
                 [
@@ -68,6 +81,22 @@ class SemanticRetriever:
             if len(results) == limit:
                 break
         return results or self._source.search(query, limit=limit)
+
+    def _search_vectors(
+        self, query: str, limit: int, pages: Sequence[Page]
+    ) -> list[SearchResult] | None:
+        assert self._vectors is not None
+        try:
+            paths = self._vectors.search_paths(query, limit)
+        except (httpx.HTTPError, KeyError, ValueError):
+            return None
+        by_path = {page.path: page for page in pages}
+        results = [
+            SearchResult(page=by_path[path], score=limit - i, snippet="")
+            for i, path in enumerate(dict.fromkeys(paths))
+            if path in by_path
+        ][:limit]
+        return results or None
 
 
 def _index(pages: Sequence[Page]) -> str:
