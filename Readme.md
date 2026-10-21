@@ -54,6 +54,35 @@ source for any claim that isn't something you just reasoned through live**
 (a commit, a PR, a note). Don't let a page accumulate claims nobody can
 trace back to anything.
 
+## 🔎 How answers are found
+
+A question goes through three retrieval steps, and each one falls back to the next if it fails:
+
+1. **Pinecone semantic search (primary).** At API startup, every public page is synced into a Pinecone index with integrated embeddings (`llama-text-embed-v2`). The sync replaces the index contents, so a page made private is removed on the next restart. A question is matched by meaning, which lets paraphrases like "failing data jobs" find a page that says "Airflow DAG failures". Only one Groq call is made for the answer.
+2. **LLM page picker.** If Pinecone is unset, unreachable, or returns nothing, the model is shown a short index of the public pages and returns the paths that answer the question.
+3. **Keyword search.** If the model's reply can't be parsed or its call fails, the original token-overlap search runs. Append-only logs such as `wins.md` are down-weighted so they don't crowd out curated pages.
+
+Retrieval only ever sees `public: true` pages. The model answers in its own words and is asked not to copy page text.
+
+**Why it was built this way**
+
+- Keyword search only matched shared words, so questions worded differently from the pages found nothing.
+- Sending every page to the model worked for a small corpus but used two Groq calls per question, which strains the free quota and adds latency. Pinecone's embedding removes the page-picking call.
+- The fallbacks keep the chat answering when Pinecone is down, unconfigured, or still indexing, so retrieval can't silently break the chat.
+- Pinecone holds only public pages, so private content never leaves the repo.
+
+**Configuration**
+
+| Variable | Purpose |
+|---|---|
+| `GROQ_API_KEY` | Answer generation, and the fallback page picker |
+| `PINECONE_API_KEY` | Pinecone access. Set as a secret; never commit it. |
+| `PINECONE_INDEX_HOST` | Host of the index that holds the public pages |
+| `CAREERBRAIN_SITE_URL` | Base URL used to build page links in replies |
+| `CAREERBRAIN_RESUME_URL` | Downloadable resume link shared when someone asks for the CV |
+
+The Discord and Slack adapters use the keyword and LLM paths only; they don't sync to Pinecone yet.
+
 ## 🗺️ Roadmap
 
 See `brain.config.yaml` for the live status of each phase.
@@ -66,9 +95,11 @@ See `brain.config.yaml` for the live status of each phase.
 3. ✅ **MCP server** — 4 tools (`search_brain`, `get_page`, `get_resume`,
    `recent_wins`) over this repo, so any AI tool can answer questions from
    it with citations.
-4. 🚧 **Public site + `/ask-me` chat** *(current)* — a generated, sanitized
-   view built only from `public: true` pages, for recruiters to query
-   directly. Site and chat are built; deployment is pending.
+4. ✅ **Public site + `/ask-me` chat** — a generated, sanitized view built only
+   from `public: true` pages, for recruiters to query directly. Deployed on
+   GitHub Pages, with the chat API on Render and the Next.js frontend on Vercel.
+5. 🚧 **Semantic retrieval** *(current)* — Pinecone embeddings for meaning-based
+   search, with the LLM and keyword fallbacks described above.
 
 ## 📜 License
 
