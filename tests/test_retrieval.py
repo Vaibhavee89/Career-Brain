@@ -9,6 +9,12 @@ from careerbrain.core.retrieval import (
 )
 
 
+def _write(root: Path, rel: str, text: str) -> None:
+    target = root / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+
+
 def _page(title: str, public: str | None, body: str) -> str:
     front = "---\ntype: project\n"
     if public is not None:
@@ -86,3 +92,28 @@ def test_search_ranks_by_term_count(brain: Path) -> None:
 
 def test_search_empty_query_returns_nothing(brain: Path) -> None:
     assert search_public(brain, "   ") == []
+
+
+def test_log_pages_are_down_weighted_below_curated_pages(tmp_path: Path) -> None:
+    line = "- 2026-10-17 — recent wins entry about wins and recent work\n"
+    _write(tmp_path, "brain.config.yaml", "paths: {}\n")
+    _write(tmp_path, "wins.md", "---\ntype: log\npublic: true\n---\n\n" + line * 12)
+    _write(
+        tmp_path,
+        "profile/recent-engineering.md",
+        "---\ntype: profile\npublic: true\n---\n\n# Recent wins and engineering\n\n"
+        "- Built the retrieval layer.\n",
+    )
+    results = search_public(tmp_path, "what are the recent wins", limit=2)
+    assert results[0].page.path == "profile/recent-engineering.md"
+
+
+def test_heading_terms_count_toward_score(tmp_path: Path) -> None:
+    _write(tmp_path, "brain.config.yaml", "paths: {}\n")
+    _write(
+        tmp_path,
+        "profile/notes.md",
+        "---\ntype: profile\npublic: true\n---\n\n# Retrieval internals\n\nSome text.\n",
+    )
+    results = search_public(tmp_path, "retrieval", limit=1)
+    assert results[0].score >= 4

@@ -7,6 +7,8 @@ from careerbrain.core.types import Page, PathTraversalError, SearchResult
 
 _SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__"}
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+LOG_TYPE = "log"
+LOG_SCORE_DIVISOR = 4
 
 
 def parse_page(path: str, text: str) -> Page:
@@ -83,4 +85,9 @@ def _score(page: Page, terms: set[str]) -> tuple[int, str]:
                 snippet = line.strip()
     title_tokens = _TOKEN_RE.findall(page.path.lower())
     score += 2 * sum(1 for t in title_tokens if t in terms)
+    heading = next((line for line in page.body.splitlines() if line.startswith("# ")), "")
+    score += 4 * sum(1 for t in _TOKEN_RE.findall(heading.lower()) if t in terms)
+    if page.frontmatter.get("type") == LOG_TYPE:
+        # Append-only logs match on many lines; down-weight them so curated pages rank.
+        score //= LOG_SCORE_DIVISOR
     return score, snippet
