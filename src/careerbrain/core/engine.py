@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
@@ -12,6 +13,7 @@ from careerbrain.core.types import SearchResult, page_links, page_url
 
 CONTEXT_LIMIT = 4
 PAGE_CHAR_LIMIT = 2500
+IDLE_LIMIT_SECONDS = 15 * 60
 RESUME_QUERY = "resume cv"
 RESUME_PAGE_PREFIX = "profile/resume-variants/"
 RESUME_TRIGGER_WORDS = ("resume", "cv", "download")
@@ -62,6 +64,8 @@ class Engine:
         reset_prefix: str = DEFAULT_RESET_PREFIX,
         site_base_url: str | None = None,
         resume_url: str | None = None,
+        idle_limit_seconds: float = IDLE_LIMIT_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._retriever = retriever
         self._llm = llm
@@ -71,9 +75,13 @@ class Engine:
         self._site_base_url = site_base_url
         self._resume_url = resume_url
         self._memories: dict[str, ConversationMemory] = {}
+        self._idle_limit = idle_limit_seconds
+        self._clock = clock
+        self._last_seen: dict[str, float] = {}
 
     def reset(self, conversation_key: str) -> None:
         self._memory_for(conversation_key).reset()
+        self._last_seen[conversation_key] = self._clock()
 
     def handle(
         self,
@@ -82,7 +90,10 @@ class Engine:
         message_limit: int,
         conversation_key: str | None = None,
     ) -> EngineResult:
-        memory = self._memory_for(conversation_key or user_id)
+        key = conversation_key or user_id
+        self._expire_if_idle(key)
+        self._last_seen[key] = self._clock()
+        memory = self._memory_for(key)
         if memory.is_reset_command(text):
             memory.reset()
             return EngineResult(kind="reset")
@@ -111,6 +122,12 @@ class Engine:
             chunks=split_message(reply, message_limit),
             sources=[hit.page.path for hit in hits],
         )
+
+    def _expire_if_idle(self, key: str) -> None:
+        """Drop a conversation's history once it has been idle past the limit."""
+        last = self._last_seen.get(key)
+        if last is not None and self._clock() - last > self._idle_limit:
+            self._memory_for(key).reset()
 
     def _memory_for(self, user_id: str) -> ConversationMemory:
         if user_id not in self._memories:

@@ -298,3 +298,52 @@ def test_resume_hit_shares_download_link_not_page_link() -> None:
     system = llm.calls[0][0].content
     assert "Resume download link: https://drive.google.com/file/d/abc/view" in system
     assert "Page link:" not in system
+
+
+def _idle_engine(llm: FakeLLM, clock: FakeClock) -> Engine:
+    return Engine(
+        retriever=FakeRetriever([_page("projects/etl.md", "built an ETL agent")]),
+        llm=llm,
+        limiter=CooldownLimiter(0.0001, clock=clock),
+        idle_limit_seconds=15 * 60,
+        clock=clock,
+    )
+
+
+def test_history_is_dropped_after_fifteen_idle_minutes() -> None:
+    llm = FakeLLM(["first answer", "second answer"])
+    clock = FakeClock()
+    engine = _idle_engine(llm, clock)
+
+    engine.handle("alice", "question one", message_limit=2000)
+    clock.now = 15 * 60 + 1
+    engine.handle("alice", "question two", message_limit=2000)
+
+    assert [m.content for m in llm.calls[1][1:]] == ["question two"]
+
+
+def test_history_is_kept_within_the_idle_limit() -> None:
+    llm = FakeLLM(["first answer", "second answer"])
+    clock = FakeClock()
+    engine = _idle_engine(llm, clock)
+
+    engine.handle("alice", "question one", message_limit=2000)
+    clock.now = 15 * 60
+    engine.handle("alice", "question two", message_limit=2000)
+
+    roles = [m.content for m in llm.calls[1][1:]]
+    assert roles == ["question one", "first answer", "question two"]
+
+
+def test_activity_refreshes_the_idle_clock() -> None:
+    llm = FakeLLM(["a", "b", "c"])
+    clock = FakeClock()
+    engine = _idle_engine(llm, clock)
+
+    engine.handle("alice", "one", message_limit=2000)
+    clock.now = 10 * 60
+    engine.handle("alice", "two", message_limit=2000)
+    clock.now = 20 * 60
+    engine.handle("alice", "three", message_limit=2000)
+
+    assert len(llm.calls[2]) == 1 + 4 + 1
