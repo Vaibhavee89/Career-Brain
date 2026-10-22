@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from careerbrain.adapters.cli import OfflineLLM
 from careerbrain.adapters.client_ip import Network, parse_networks, resolve_client_ip
 from careerbrain.bootstrap import Brain, open_brain
+from careerbrain.core.answer_cache import AnswerCache, data_version
 from careerbrain.core.engine import Engine
 from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter, WindowLimiter
@@ -195,6 +196,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),
+        cache=AnswerCache(),
+        data_version=data_version(brain.list_public_pages()),
         resume_url=os.environ.get(RESUME_URL_ENV),
     )
     app = build_app(

@@ -11,6 +11,7 @@ from typing import Literal
 
 from careerbrain.adapters.cli import OfflineLLM
 from careerbrain.bootstrap import open_brain
+from careerbrain.core.answer_cache import AnswerCache, data_version
 from careerbrain.core.engine import Engine, EngineResult
 from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter
@@ -159,5 +160,7 @@ def build_engine(root: Path | None, offline: bool) -> Engine:
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),
+        cache=AnswerCache(),
+        data_version=data_version(brain.list_public_pages()),
         resume_url=os.environ.get(RESUME_URL_ENV),
     )

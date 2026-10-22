@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
+from careerbrain.core.answer_cache import AnswerCache, normalize_question
 from careerbrain.core.llm import LLMProvider
 from careerbrain.core.memory import DEFAULT_RESET_PREFIX, ConversationMemory, Message
 from careerbrain.core.ratelimit import CooldownLimiter
@@ -66,6 +67,8 @@ class Engine:
         resume_url: str | None = None,
         idle_limit_seconds: float = IDLE_LIMIT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        cache: AnswerCache | None = None,
+        data_version: str = "",
     ) -> None:
         self._retriever = retriever
         self._llm = llm
@@ -78,6 +81,8 @@ class Engine:
         self._idle_limit = idle_limit_seconds
         self._clock = clock
         self._last_seen: dict[str, float] = {}
+        self._cache = cache
+        self._data_version = data_version
 
     def reset(self, conversation_key: str) -> None:
         self._memory_for(conversation_key).reset()
@@ -103,6 +108,19 @@ class Engine:
                 kind="rate_limited", retry_after=self._limiter.retry_after(user_id)
             )
 
+        cache_key = self._cache_key(text) if not memory.messages() else None
+        if cache_key is not None and self._cache is not None:
+            entry = self._cache.get(cache_key)
+            if entry is not None:
+                cached_reply, cached_sources = entry
+                memory.add_user(text)
+                memory.add_assistant(cached_reply)
+                return EngineResult(
+                    kind="reply",
+                    chunks=split_message(cached_reply, message_limit),
+                    sources=list(cached_sources),
+                )
+
         hits = self._retriever.search(text, limit=CONTEXT_LIMIT)
         if any(word in text.lower() for word in RESUME_TRIGGER_WORDS):
             hits = _with_resume_hit(hits, self._retriever.search(RESUME_QUERY, limit=1))
@@ -115,12 +133,24 @@ class Engine:
         ]
         reply = self._llm.complete(messages)
 
+        if cache_key is not None and self._cache is not None:
+            self._cache.put(cache_key, reply, [hit.page.path for hit in hits])
         memory.add_user(text)
         memory.add_assistant(reply)
         return EngineResult(
             kind="reply",
             chunks=split_message(reply, message_limit),
             sources=[hit.page.path for hit in hits],
+        )
+
+    def _cache_key(self, text: str) -> str:
+        return "|".join(
+            [
+                self._data_version,
+                self._site_base_url or "",
+                self._resume_url or "",
+                normalize_question(text),
+            ]
         )
 
     def _expire_if_idle(self, key: str) -> None:
