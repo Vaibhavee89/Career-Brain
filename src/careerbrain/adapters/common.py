@@ -17,6 +17,7 @@ from careerbrain.core.llm import GroqProvider, LLMError, LLMProvider
 from careerbrain.core.ratelimit import CooldownLimiter
 from careerbrain.core.semantic import SemanticRetriever
 from careerbrain.core.splitter import split_message
+from careerbrain.core.vector import sync_vectors
 
 API_KEY_ENV = "GROQ_API_KEY"
 SITE_URL_ENV = "CAREERBRAIN_SITE_URL"
@@ -155,8 +156,9 @@ def build_engine(root: Path | None, offline: bool) -> Engine:
             raise RuntimeError(f"Set {API_KEY_ENV} or run with --offline.")
         llm = GroqProvider(api_key)
     brain = open_brain(root)
+    vectors = None if offline else sync_vectors(brain)
     return Engine(
-        retriever=SemanticRetriever(brain, llm),
+        retriever=SemanticRetriever(brain, llm, vectors=vectors),
         llm=llm,
         limiter=CooldownLimiter(COOLDOWN_SECONDS),
         site_base_url=os.environ.get(SITE_URL_ENV),

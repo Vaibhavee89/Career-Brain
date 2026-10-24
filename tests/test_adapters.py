@@ -1,15 +1,17 @@
 from collections.abc import Sequence
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from careerbrain.adapters import discord_bot, slack_bot
+from careerbrain.adapters import common, discord_bot, slack_bot
 from careerbrain.adapters.common import (
     DISCORD_MESSAGE_LIMIT,
     LLM_UNAVAILABLE_TEXT,
     SLACK_MESSAGE_LIMIT,
     InboundMessage,
     RecentEvents,
+    build_engine,
     dispatch,
     render_reply,
     strip_mentions,
@@ -316,6 +318,43 @@ def test_rate_limit_follows_user_across_conversations() -> None:
         SLACK_MESSAGE_LIMIT,
     )
     assert blocked.startswith("Too fast.")
+
+
+# build_engine: Discord/Slack should get the same retrieval wiring as the HTTP API.
+
+
+@pytest.fixture
+def brain_root(tmp_path: Path) -> Path:
+    (tmp_path / "brain.config.yaml").write_text("paths: {}\n", encoding="utf-8")
+    (tmp_path / "projects").mkdir()
+    (tmp_path / "projects/etl.md").write_text(
+        '---\npublic: "true"\n---\n# ETL\n\nbuilt an ETL agent\n', encoding="utf-8"
+    )
+    return tmp_path
+
+
+def test_build_engine_wires_pinecone_vectors_into_the_retriever(
+    brain_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sentinel = object()
+    monkeypatch.setenv("GROQ_API_KEY", "key")
+    monkeypatch.setattr(common, "sync_vectors", lambda brain: sentinel)
+
+    engine = build_engine(brain_root, offline=False)
+
+    assert engine._retriever._vectors is sentinel  # type: ignore[attr-defined]
+
+
+def test_build_engine_skips_vector_sync_when_offline(
+    brain_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[object] = []
+    monkeypatch.setattr(common, "sync_vectors", lambda brain: calls.append(brain))
+
+    engine = build_engine(brain_root, offline=True)
+
+    assert calls == []
+    assert engine._retriever._vectors is None  # type: ignore[attr-defined]
 
 
 def test_llm_failure_returns_friendly_text_instead_of_raising() -> None:
