@@ -41,6 +41,19 @@ def test_copies_only_public_pages_and_config(src: Path, tmp_path: Path) -> None:
     assert not (dst / ".git").exists()
 
 
+def test_pages_under_load_pages_excluded_dirs_are_never_copied(
+    src: Path, tmp_path: Path
+) -> None:
+    (src / "__pycache__").mkdir()
+    (src / "__pycache__/cached.md").write_text(_page("Cached", "true"))
+    dst = tmp_path / "serve"
+
+    count = copy_public(src, dst)
+
+    assert count == 2
+    assert not (dst / "__pycache__").exists()
+
+
 def test_refuses_when_no_public_pages(tmp_path: Path) -> None:
     src = tmp_path / "data"
     src.mkdir()

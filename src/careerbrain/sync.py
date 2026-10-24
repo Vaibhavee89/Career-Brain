@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from careerbrain.config import CONFIG_FILENAME
-from careerbrain.core.retrieval import _SKIP_DIRS, parse_page
+from careerbrain.core.retrieval import load_pages
 
 
 def copy_public(src: Path, dst: Path) -> int:
@@ -24,18 +24,12 @@ def copy_public(src: Path, dst: Path) -> int:
 
     dst.mkdir(parents=True, exist_ok=True)
     copied = 0
-    for file in sorted(src.rglob("*.md")):
-        rel = file.relative_to(src)
-        if any(part in _SKIP_DIRS or part.startswith(".") for part in rel.parts):
-            continue
-        if not file.is_file() or not file.resolve().is_relative_to(src):
-            continue
-        page = parse_page(rel.as_posix(), file.read_text(encoding="utf-8"))
+    for page in load_pages(src):
         if not page.is_public:
             continue
-        target = dst / rel
+        target = dst / page.path
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(file, target)
+        shutil.copyfile(src / page.path, target)
         copied += 1
 
     if copied == 0:
